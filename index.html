@@ -196,6 +196,79 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
   #oyun.sars, #flas.ac, .skor.vurgu, #kelime.gel, #perde .kural.gel, .yon.ipucu { animation: none; }
   #kelime.ucsol, #kelime.ucsag { transform: none; }
 }
+
+/* ---------- Sürprizler: yıldız kelime, seri kutlaması, rozetler, gizli kapı ---------- */
+#parcacik { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+#sureCubuk.gokkusagi {
+  background: linear-gradient(90deg, var(--kirmizi), var(--sari), var(--yesil), var(--mavi), var(--kirmizi));
+  background-size: 200% 100%;
+  animation: akis .9s linear infinite;
+}
+#kelime.yildiz { position: relative; }
+#kelime.yildiz::before {
+  content: "★ YILDIZ KELİME ★";
+  position: absolute; left: 50%; bottom: 100%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--metin);
+  font: 700 max(15px, .16em)/1 var(--govde);
+  letter-spacing: .12em;
+  animation: parilti .5s ease-in-out infinite alternate;
+}
+#kelime.yildiz::after {
+  content: "✦";
+  position: absolute; right: -.32em; top: -.05em;
+  color: var(--metin);
+  font-size: .32em;
+  animation: pirilti .7s ease-in-out infinite alternate;
+}
+.ucan-yazi {
+  position: fixed; z-index: 21; pointer-events: none;
+  font: 400 2.4rem/1 var(--baslik);
+  letter-spacing: .03em;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+  animation: uc 1s ease-out forwards;
+  text-shadow: 0 2px 0 var(--zemin);
+}
+.rozet-dugme { border: 0; background: none; padding: 0; color: inherit; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rozet-dugme b { color: var(--sari); }
+#rozetBildirim {
+  position: fixed; z-index: 30; left: 50%; top: max(12px, env(safe-area-inset-top, 0px));
+  display: flex; align-items: center; gap: 10px;
+  max-width: calc(100% - 32px);
+  padding: 10px 16px;
+  border-radius: 4px;
+  background: var(--metin); color: var(--zemin);
+  font-weight: 700; font-size: 1.05rem; line-height: 1.15;
+  transform: translate(-50%, -160%);
+  transition: transform .28s cubic-bezier(.2, 1.4, .4, 1);
+  pointer-events: none;
+}
+#rozetBildirim.ac { transform: translate(-50%, 0); }
+#rozetBildirim i { font: 400 1.7rem/1 var(--baslik); font-style: normal; }
+#rozetBildirim small { display: block; font-weight: 600; opacity: .7; letter-spacing: .08em; font-size: .8rem; }
+#rozetEkrani { gap: 12px; }
+#rozetEkrani h2 { margin: 0; font: 400 3rem/1.1 var(--baslik); letter-spacing: .01em; }
+#rozetListe { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; touch-action: pan-y; }
+#rozetListe li { flex: none; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr); align-items: center; gap: 10px; padding: 8px 12px; border-radius: 4px; background: var(--yuzey); border: 2px solid transparent; }
+#rozetListe li > span { font: 400 1.5rem/1 var(--baslik); text-align: center; color: var(--sari); filter: grayscale(1); opacity: .35; }
+#rozetListe li b { display: block; font: 400 1.35rem/1.1 var(--baslik); letter-spacing: .02em; color: var(--soluk); }
+#rozetListe li small { display: block; color: var(--soluk); font-weight: 600; font-size: 1rem; line-height: 1.2; }
+#rozetListe li.acik { border-color: var(--metin); }
+#rozetListe li.acik > span { filter: none; opacity: 1; }
+#rozetListe li.acik b { color: var(--metin); }
+.logo.dans span { display: inline-block; animation: dans .7s cubic-bezier(.3, 1.6, .5, 1) both; animation-delay: calc(var(--i) * 70ms); }
+
+@keyframes akis { from { background-position: 0 0; } to { background-position: 200% 0; } }
+@keyframes parilti { from { opacity: .55; } to { opacity: 1; } }
+@keyframes pirilti { from { transform: scale(.6) rotate(0deg); opacity: .4; } to { transform: scale(1.15) rotate(90deg); opacity: 1; } }
+@keyframes uc { 0% { opacity: 0; transform: translate(-50%, -20%) scale(.6); } 20% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -220%) scale(1); } }
+@keyframes dans { 0% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-28%) rotate(-12deg) scale(1.1); } 70% { transform: translateY(6%) rotate(8deg); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #sureCubuk.gokkusagi, #kelime.yildiz::before, #kelime.yildiz::after, .logo.dans span { animation: none; }
+  #rozetBildirim { transition: none; }
+}
 </style>
 
 <section id="giris" class="ekran">
@@ -208,7 +281,7 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
     <small>Bu yazı kırmızı mı, mavi mi? Kurala göre değişir.</small>
   </div>
   <div class="giris-alt">
-    <div class="kayit"><span>Rekor <b id="girisRekor">0</b></span><span>Bugün <b id="girisGunluk">0</b></span></div>
+    <div class="kayit"><span>Rekor <b id="girisRekor">0</b></span><button id="rozetBtn" class="rozet-dugme" type="button">Rozet <b id="rozetSayi">0</b></button><span>Bugün <b id="girisGunluk">0</b></span></div>
     <button id="oynaBtn" class="dugme" type="button">OYNA</button>
     <div class="dugme-sira">
       <button id="gunlukBtn" class="dugme ikincil" type="button">Günlük tur</button>
@@ -279,7 +352,14 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
   <button id="geriBtn" class="dugme" type="button">GERİ</button>
 </section>
 
+<section id="rozetEkrani" class="ekran" hidden>
+  <h2>ROZETLER</h2>
+  <ol id="rozetListe"></ol>
+  <button id="rozetGeriBtn" class="dugme" type="button">GERİ</button>
+</section>
+
 <div id="flas"></div>
+<div id="rozetBildirim" role="status" aria-live="polite"></div>
 
 <script>
 /* ---------- Oyun ayarları: hissi buradan değiştir ---------- */
@@ -402,6 +482,11 @@ function ton(frekans, sure, tip, guc, gecikme) {
 function titret(desen) {
   if (sesKapali) return;
   try { if (navigator.vibrate) navigator.vibrate(desen); } catch (e) {}
+}
+
+// Sürpriz katmanı (dosyanın sonunda) oyunu asla durduramaz: hata olursa sessizce atlanır.
+function surpriz(ad, ...arg) {
+  try { if (window.Surpriz) window.Surpriz[ad](...arg); } catch (e) {}
 }
 
 /* ---------- Ekran öğeleri ---------- */
@@ -577,6 +662,7 @@ function hudGuncelle() {
   el.carpan.textContent = '×' + c;
   const doluluk = c === AYAR.enYuksekCarpan ? AYAR.carpanSerisi : d.seri % AYAR.carpanSerisi;
   Array.prototype.forEach.call(el.pipler.children, (p, i) => p.classList.toggle('dolu', i < doluluk));
+  el.sureCubuk.classList.toggle('gokkusagi', c === AYAR.enYuksekCarpan);
 }
 function kuralYaz(oge, kural) {
   oge.textContent = KURALLAR[kural];
@@ -622,6 +708,7 @@ function soruGoster() {
   el.kutu.dataset.renk = s.kutu;
   el.kutu.style.background = 'var(--' + s.kutu + ')';
   animasyon(el.kelime, 'gel');
+  surpriz('soru', s);
   const ipucu = d.ogretici && d.ogreticiKalan > 0;
   el.sagYon.classList.toggle('ipucu', ipucu && s.eslesir);
   el.solYon.classList.toggle('ipucu', ipucu && !s.eslesir);
@@ -646,6 +733,7 @@ function cevapla(eslesiyorDedi) {
   if (eslesiyorDedi !== d.soru.eslesir) { bitir('yanlis'); return; }
 
   const eskiCarpan = carpanHesapla(d.seri);
+  const ogreticiydi = d.ogretici && d.ogreticiKalan > 0;
   d.dogru++;
   d.seri++;
   d.enUzun = Math.max(d.enUzun, d.seri);
@@ -663,6 +751,7 @@ function cevapla(eslesiyorDedi) {
   ton(NOTALAR[(d.seri - 1) % NOTALAR.length], .12);
   titret(10);
   if (carpan > eskiCarpan) { ton(1046.5, .12, 'triangle', .1, .06); ton(1318.5, .16, 'triangle', .1, .13); titret([10, 30, 20]); }
+  surpriz('dogru', tepki, eskiCarpan, carpan, ogreticiydi);
   d.durum = 'gecis';
   el.kelime.classList.add(eslesiyorDedi ? 'ucsag' : 'ucsol');
   zamanla(() => soruyaGec(false), AYAR.gecisSuresi);
@@ -702,6 +791,7 @@ function bitir(sebep) {
   d.paylasim = 'Çelişki' + (d.mod === 'gunluk' ? ' · Günlük ' + bugunAnahtari() : '') + '\n' +
     d.skor + ' puan · en uzun seri ' + d.enUzun + ' · %' + dogruluk + ' doğruluk' + (ort === null ? '' : ' · ort. ' + ort + ' ms');
   turuGonder(d);
+  surpriz('bitis', yeniRekor, eskiRekor);
   setTimeout(() => { if (d && d.durum === 'bitti') ekranGoster('bitis'); }, 260);
 }
 
@@ -781,4 +871,301 @@ el.kopyaBtn.addEventListener('click', () => {
 sesEtiketi();
 girisGuncelle();
 skorGonderBekleyen();
+</script>
+
+<script>
+/* ---------- Sürprizler ----------
+   Yalnızca görsel ve ses katmanıdır: puan hesabına ve günlük turun tohumuna dokunmaz,
+   böylece sunucudaki skor doğrulaması ve sıralama aynen çalışır. */
+window.Surpriz = (() => {
+  const azHareket = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const kok = getComputedStyle(document.documentElement);
+  const PALET = RENKLER.map((r) => kok.getPropertyValue('--' + r).trim() || '#fff');
+  const BEYAZ = kok.getPropertyValue('--metin').trim() || '#fff';
+  const YILDIZ_ORANI = 0.06; // bir sorunun yıldız kelime olma olasılığı
+
+  /* Parçacık tuvali */
+  const tuval = document.createElement('canvas');
+  tuval.id = 'parcacik';
+  tuval.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(tuval);
+  const cz = tuval.getContext('2d');
+  let parcalar = [];
+  let donuyor = false;
+  let olcek = 1;
+  function boyutla() {
+    olcek = Math.min(2, window.devicePixelRatio || 1);
+    tuval.width = Math.round(innerWidth * olcek);
+    tuval.height = Math.round(innerHeight * olcek);
+  }
+  boyutla();
+  addEventListener('resize', boyutla);
+
+  function ekle(p) {
+    if (azHareket || !cz) return;
+    parcalar.push(p);
+    if (parcalar.length > 500) parcalar.shift();
+    if (!donuyor) { donuyor = true; requestAnimationFrame(cizim); }
+  }
+  function patlat(x, y, adet, o) {
+    o = o || {};
+    for (let i = 0; i < adet; i++) {
+      const aci = Math.random() * Math.PI * 2;
+      const hiz = (o.hiz || 7) * (0.35 + Math.random() * 0.65);
+      ekle({
+        x, y,
+        vx: Math.cos(aci) * hiz, vy: Math.sin(aci) * hiz - (o.yukari || 2),
+        g: o.yercekimi == null ? 0.22 : o.yercekimi,
+        omur: (o.omur || 60) * (0.7 + Math.random() * 0.6), yas: 0,
+        renk: o.renk || PALET[i % PALET.length],
+        boy: (o.boy || 7) * (0.6 + Math.random() * 0.7),
+        don: Math.random() * 6, dv: (Math.random() - 0.5) * 0.4,
+        sekil: o.sekil || 'kagit'
+      });
+    }
+  }
+  function yagmur(adet) {
+    for (let i = 0; i < adet; i++) {
+      ekle({
+        x: Math.random() * innerWidth, y: -20 - Math.random() * innerHeight * 0.6,
+        vx: (Math.random() - 0.5) * 2, vy: 2 + Math.random() * 3, g: 0.05,
+        omur: 220, yas: 0, renk: PALET[i % PALET.length], boy: 6 + Math.random() * 6,
+        don: Math.random() * 6, dv: (Math.random() - 0.5) * 0.3, sekil: 'kagit'
+      });
+    }
+  }
+  function yildizCiz(r) {
+    cz.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = i * Math.PI / 5 - Math.PI / 2;
+      const u = i % 2 ? r * 0.45 : r;
+      cz.lineTo(Math.cos(a) * u, Math.sin(a) * u);
+    }
+    cz.closePath();
+    cz.fill();
+  }
+  function cizim() {
+    cz.setTransform(1, 0, 0, 1, 0, 0);
+    cz.clearRect(0, 0, tuval.width, tuval.height);
+    parcalar = parcalar.filter((p) => p.yas < p.omur && p.y < innerHeight + 40);
+    for (const p of parcalar) {
+      p.yas++;
+      p.vy += p.g;
+      p.vx *= 0.985;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.don += p.dv;
+      cz.globalAlpha = Math.max(0, 1 - p.yas / p.omur);
+      cz.fillStyle = p.renk;
+      cz.setTransform(olcek, 0, 0, olcek, p.x * olcek, p.y * olcek);
+      cz.rotate(p.don);
+      if (p.sekil === 'yildiz') yildizCiz(p.boy);
+      else cz.fillRect(-p.boy / 2, -p.boy / 4, p.boy, p.boy / 2 * (0.4 + Math.abs(Math.sin(p.don * 2))));
+    }
+    cz.globalAlpha = 1;
+    if (parcalar.length) requestAnimationFrame(cizim);
+    else { donuyor = false; cz.setTransform(1, 0, 0, 1, 0, 0); cz.clearRect(0, 0, tuval.width, tuval.height); }
+  }
+  function merkez(oge) {
+    const k = oge.getBoundingClientRect();
+    return { x: k.left + k.width / 2, y: k.top + k.height / 2 };
+  }
+  function ucanYazi(metin, x, y, renk) {
+    if (azHareket) return;
+    const s = document.createElement('div');
+    s.className = 'ucan-yazi';
+    s.textContent = metin;
+    s.style.left = x + 'px';
+    s.style.top = y + 'px';
+    s.style.color = renk || BEYAZ;
+    s.addEventListener('animationend', () => s.remove());
+    document.body.appendChild(s);
+  }
+
+  /* Rozetler */
+  const ROZETLER = [
+    { k: 'seri10', isaret: '10', ad: 'Isınma Turu', ipucu: 'Bir turda art arda 10 doğru cevap ver.' },
+    { k: 'seri25', isaret: '25', ad: 'Odak Ustası', ipucu: 'Bir turda art arda 25 doğru cevap ver.' },
+    { k: 'carpan5', isaret: '×5', ad: 'Gökkuşağı', ipucu: 'En yüksek çarpana, ×5\'e ulaş.' },
+    { k: 'hiz', isaret: 'MS', ad: 'Işık Hızı', ipucu: '400 ms\'den kısa sürede doğru cevap ver.' },
+    { k: 'yildiz', isaret: '★', ad: 'Yıldız Avcısı', ipucu: 'Nadiren beliren yıldız kelimeyi doğru cevapla.' },
+    { k: 'bukalemun', isaret: '↻', ad: 'Bukalemun', ipucu: 'Bir turda kural 5 kez değişsin, sen hâlâ ayakta ol.' },
+    { k: 'rekor', isaret: '↑', ad: 'Kendini Aş', ipucu: 'Önceki rekorunu kır.' },
+    { k: 'gizli', isaret: '?', ad: 'Gizli Kapı', ipucu: 'Ana ekranda bir sır saklı. Logoya ya da eski bir oyun koduna bak.' }
+  ];
+  function kazanilanlar() {
+    try { const v = JSON.parse(depo.al('celiski.rozetler')); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+  }
+  function sayacYaz() {
+    $('rozetSayi').textContent = kazanilanlar().length + '/' + ROZETLER.length;
+  }
+  const kuyruk = [];
+  let bildirimde = false;
+  function bildirimGoster() {
+    if (bildirimde || !kuyruk.length) return;
+    bildirimde = true;
+    const r = kuyruk.shift();
+    const kutu = $('rozetBildirim');
+    kutu.textContent = '';
+    const i = document.createElement('i');
+    i.textContent = r.isaret;
+    const yazi = document.createElement('span');
+    const ust = document.createElement('small');
+    ust.textContent = 'YENİ ROZET';
+    yazi.append(ust, r.ad);
+    kutu.append(i, yazi);
+    kutu.classList.add('ac');
+    ton(783.99, .1, 'triangle', .1);
+    ton(1174.66, .18, 'triangle', .1, .09);
+    setTimeout(() => {
+      kutu.classList.remove('ac');
+      setTimeout(() => { bildirimde = false; bildirimGoster(); }, 320);
+    }, 2200);
+  }
+  function rozetVer(k) {
+    const liste = kazanilanlar();
+    if (liste.includes(k)) return;
+    const r = ROZETLER.find((x) => x.k === k);
+    if (!r) return;
+    liste.push(k);
+    depo.yaz('celiski.rozetler', JSON.stringify(liste));
+    sayacYaz();
+    kuyruk.push(r);
+    bildirimGoster();
+  }
+  function rozetEkrani() {
+    const liste = kazanilanlar();
+    const ol = $('rozetListe');
+    ol.textContent = '';
+    ROZETLER.forEach((r) => {
+      const acik = liste.includes(r.k);
+      const li = document.createElement('li');
+      li.classList.toggle('acik', acik);
+      const isaret = document.createElement('span');
+      isaret.textContent = r.isaret;
+      const yazi = document.createElement('div');
+      const ad = document.createElement('b');
+      ad.textContent = acik || r.k !== 'gizli' ? r.ad : '???';
+      const ip = document.createElement('small');
+      ip.textContent = r.ipucu;
+      yazi.append(ad, ip);
+      li.append(isaret, yazi);
+      ol.appendChild(li);
+    });
+    el.giris.hidden = true;
+    $('rozetEkrani').hidden = false;
+  }
+  $('rozetBtn').addEventListener('click', rozetEkrani);
+  $('rozetGeriBtn').addEventListener('click', () => {
+    $('rozetEkrani').hidden = true;
+    girisGuncelle();
+    el.giris.hidden = false;
+  });
+
+  /* Gizli kapı: Konami kodu ya da logoya art arda 7 dokunuş */
+  const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+  let konamiAdim = 0;
+  let dokunuslar = [];
+  let canliOrnek = null;
+  function gizliKapi() {
+    sesiHazirla();
+    const logo = document.querySelector('.logo');
+    const harfler = Array.from(logo.children);
+    harfler.forEach((h, i) => h.style.setProperty('--i', i));
+    animasyon(logo, 'dans');
+    // Harflerin renkleri bir adım kayar: logo bile kendi rengine sadık değil.
+    const kayma = Math.floor(Math.random() * 3) + 1;
+    harfler.forEach((h, i) => { h.style.color = 'var(--' + RENKLER[(i + kayma) % RENKLER.length] + ')'; });
+    const m = merkez(logo);
+    patlat(m.x, m.y, 90, { hiz: 10, omur: 80 });
+    [523.25, 659.25, 783.99, 1046.5, 1318.5].forEach((f, i) => ton(f, .16, 'square', .06, i * .08));
+    titret([20, 40, 20, 40, 60]);
+    document.querySelector('.not').textContent = 'Gizli kapıyı buldun. Aşağıdaki kelimeye bak: o da sana yalan söylüyor.';
+    const ornek = document.querySelector('.ornek .kelime');
+    if (!canliOrnek) {
+      canliOrnek = setInterval(() => {
+        if (el.giris.hidden) return;
+        const k = RENKLER[Math.floor(Math.random() * 4)];
+        const r = RENKLER.filter((x) => x !== k)[Math.floor(Math.random() * 3)];
+        ornek.textContent = ADLAR[k];
+        ornek.style.color = 'var(--' + r + ')';
+      }, 650);
+    }
+    rozetVer('gizli');
+  }
+  document.addEventListener('keydown', (e) => {
+    if (el.giris.hidden) { konamiAdim = 0; return; }
+    const tus = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    if (tus === KONAMI[konamiAdim]) {
+      konamiAdim++;
+      if (konamiAdim === KONAMI.length) { konamiAdim = 0; gizliKapi(); }
+    } else {
+      konamiAdim = tus === KONAMI[0] ? 1 : 0;
+    }
+  });
+  document.querySelector('.logo').addEventListener('click', () => {
+    const simdi = performance.now();
+    dokunuslar = dokunuslar.filter((t) => simdi - t < 2500);
+    dokunuslar.push(simdi);
+    if (dokunuslar.length >= 7) { dokunuslar = []; gizliKapi(); }
+  });
+
+  sayacYaz();
+
+  /* Oyun kancaları */
+  return {
+    soru(s) {
+      if (!('yildizSay' in d)) { d.yildizSay = 0; d.kuralSay = 0; d.sonYildiz = -99; }
+      if (s.degisti && d.dogru > 0) {
+        d.kuralSay++;
+        if (d.kuralSay >= 5) rozetVer('bukalemun');
+      }
+      const yildiz = !d.ogretici && d.dogru >= 4 && d.dogru - d.sonYildiz > 6 && Math.random() < YILDIZ_ORANI;
+      el.kelime.classList.toggle('yildiz', yildiz);
+      d.yildiz = yildiz;
+      if (yildiz) {
+        d.sonYildiz = d.dogru;
+        ton(1567.98, .08, 'sine', .07);
+        ton(2093, .14, 'sine', .06, .06);
+      }
+    },
+    dogru(tepki, eskiCarpan, carpan, ogreticiydi) {
+      if (d.seri === 10) rozetVer('seri10');
+      if (d.seri === 25) rozetVer('seri25');
+      if (!ogreticiydi && tepki < 400) rozetVer('hiz');
+      if (d.yildiz) {
+        d.yildiz = false;
+        d.yildizSay++;
+        el.kelime.classList.remove('yildiz');
+        const m = merkez(el.kelime);
+        patlat(m.x, m.y, 40, { renk: BEYAZ, sekil: 'yildiz', hiz: 9, boy: 7, omur: 55, yercekimi: 0.12 });
+        patlat(m.x, m.y, 30, { hiz: 8 });
+        ucanYazi('YILDIZ!', m.x, m.y - 40);
+        [1046.5, 1318.5, 1567.98, 2093].forEach((f, i) => ton(f, .12, 'sine', .08, i * .05));
+        titret([15, 20, 15]);
+        rozetVer('yildiz');
+      }
+      const s = merkez(el.skor);
+      if (carpan > eskiCarpan) {
+        const enUst = carpan === AYAR.enYuksekCarpan;
+        patlat(s.x, s.y, enUst ? 80 : 35, { hiz: enUst ? 11 : 7 });
+        ucanYazi('×' + carpan + (enUst ? ' ALEV!' : '!'), s.x + 40, s.y, enUst ? 'var(--sari)' : BEYAZ);
+        if (enUst) { animasyon(el.oyun, 'sars'); rozetVer('carpan5'); }
+      } else if (carpan === AYAR.enYuksekCarpan && d.seri % 10 === 0) {
+        patlat(s.x, s.y, 45, { hiz: 9 });
+        ucanYazi('SERİ ' + d.seri + '!', s.x + 50, s.y, 'var(--sari)');
+      }
+    },
+    bitis(yeniRekor, eskiRekor) {
+      el.kelime.classList.remove('yildiz');
+      if (yeniRekor && d.skor > 0) {
+        setTimeout(() => {
+          yagmur(160);
+          [659.25, 783.99, 1046.5].forEach((f, i) => ton(f, .2, 'triangle', .1, .35 + i * .12));
+        }, 300);
+        if (eskiRekor > 0) rozetVer('rekor');
+      }
+    }
+  };
+})();
 </script>
