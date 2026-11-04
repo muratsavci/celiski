@@ -1,0 +1,12 @@
+name = "celiski-api"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[vars]
+IZINLI_KOKENLER = "https://muratsavci.github.io"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "celiski"
+database_id = "2fc4a8d8-609b-4254-944c-b9e2bfc605e5"

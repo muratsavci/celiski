@@ -160,6 +160,22 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
 .ozet dt { color: var(--soluk); font-size: .95rem; font-weight: 600; }
 .ozet dd { margin: 0; font: 400 1.7rem/1.15 var(--baslik); font-variant-numeric: tabular-nums; }
 .bitis-alt { display: flex; flex-direction: column; gap: 10px; }
+#siraDurum { min-height: 1.3em; color: var(--soluk); font-weight: 600; }
+.dugme-sira.uclu { grid-template-columns: repeat(3, 1fr); }
+
+/* Sıralama */
+#siralama { gap: 12px; }
+#siralama h2 { margin: 0; font: 400 3rem/1.1 var(--baslik); letter-spacing: .01em; }
+#liste { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; touch-action: pan-y; }
+#liste li { flex: none; display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 44px; padding: 4px 10px; border-radius: 4px; background: var(--yuzey); font-weight: 600; font-size: 1.15rem; }
+#liste .no, #liste .puan { font-family: var(--baslik); font-weight: 400; font-variant-numeric: tabular-nums; }
+#liste .ad { min-width: 0; overflow-wrap: anywhere; line-height: 1.1; }
+#liste .ad small { display: block; font-size: .85rem; font-weight: 500; opacity: .75; }
+#liste li.sen { background: var(--metin); color: var(--zemin); font-weight: 700; }
+#liste li.ara { min-height: 0; padding: 0; background: none; color: var(--soluk); display: block; text-align: center; }
+#siraNot { margin: 0; color: var(--soluk); font-size: 1rem; line-height: 1.3; }
+.gizlilik { margin: 0; color: var(--soluk); font-size: .9rem; line-height: 1.25; }
+
 #kopyaMetni { width: 100%; height: 72px; padding: 8px; background: var(--yuzey); color: var(--metin); border: 1px solid var(--cizgi); font: 500 1rem var(--govde); -webkit-user-select: text; user-select: text; resize: none; }
 
 @keyframes gel { from { transform: scale(.94); } to { transform: scale(1); } }
@@ -191,7 +207,10 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
   <div class="giris-alt">
     <div class="kayit"><span>Rekor <b id="girisRekor">0</b></span><span>Bugün <b id="girisGunluk">0</b></span></div>
     <button id="oynaBtn" class="dugme" type="button">OYNA</button>
-    <button id="gunlukBtn" class="dugme ikincil" type="button">Günlük tur</button>
+    <div class="dugme-sira">
+      <button id="gunlukBtn" class="dugme ikincil" type="button">Günlük tur</button>
+      <button id="siralamaBtn" class="dugme ikincil" type="button">İlk 10</button>
+    </div>
   </div>
 </section>
 
@@ -227,6 +246,7 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
     <div id="sebep">YANLIŞ YÖN</div>
     <div id="sonSkor">0</div>
     <div id="rekorDurum"></div>
+    <div id="siraDurum"></div>
   </div>
   <p id="tekrarSoru"></p>
   <dl class="ozet">
@@ -237,11 +257,21 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
   <div class="bitis-alt">
     <textarea id="kopyaMetni" readonly hidden aria-label="Paylaşılacak skor metni"></textarea>
     <button id="tekrarBtn" class="dugme" type="button">TEKRAR OYNA</button>
-    <div class="dugme-sira">
-      <button id="kopyaBtn" class="dugme ikincil" type="button">Skoru kopyala</button>
+    <div class="dugme-sira uclu">
+      <button id="kopyaBtn" class="dugme ikincil" type="button">Kopyala</button>
+      <button id="bitisSiraBtn" class="dugme ikincil" type="button">İlk 10</button>
       <button id="anaBtn" class="dugme ikincil" type="button">Ana ekran</button>
     </div>
   </div>
+</section>
+
+<section id="siralama" class="ekran" hidden>
+  <h2>İLK 10</h2>
+  <ol id="liste"></ol>
+  <p id="siraNot"></p>
+  <p class="gizlilik">İsimler IP adresinden otomatik üretilir. IP adresin saklanmaz, yalnızca ondan türetilen geri çevrilemez bir kod tutulur.</p>
+  <button id="siraYenileBtn" class="dugme ikincil" type="button" hidden>Tekrar dene</button>
+  <button id="geriBtn" class="dugme" type="button">GERİ</button>
 </section>
 
 <div id="flas"></div>
@@ -268,6 +298,8 @@ const AYAR = {
   gecisSuresi: 80,      // doğru cevaptan sonra geçiş (ms)
   bitisKilidi: 350      // bitişte yanlışlıkla yeniden başlamayı önler (ms)
 };
+
+const API = 'https://celiski-api.muratsavci-com.workers.dev';
 
 const RENKLER = ['kirmizi', 'mavi', 'yesil', 'sari'];
 const ADLAR = { kirmizi: 'KIRMIZI', mavi: 'MAVİ', yesil: 'YEŞİL', sari: 'SARI' };
@@ -366,11 +398,11 @@ function titret(desen) {
 /* ---------- Ekran öğeleri ---------- */
 const $ = (id) => document.getElementById(id);
 const el = {};
-['giris','oyun','bitis','skor','carpan','pipler','sureCubuk','kural','kelime','kutu','solYon','sagYon','perde','perdeEtiket','perdeKural','flas','oyunRekor','sesBtn','sebep','sonSkor','rekorDurum','tekrarSoru','ozSeri','ozDogruluk','ozSure','kopyaMetni','kopyaBtn'].forEach((k) => { el[k] = $(k); });
+['giris','oyun','bitis','siralama','liste','siraNot','siraDurum','siraYenileBtn','skor','carpan','pipler','sureCubuk','kural','kelime','kutu','solYon','sagYon','perde','perdeEtiket','perdeKural','flas','oyunRekor','sesBtn','sebep','sonSkor','rekorDurum','tekrarSoru','ozSeri','ozDogruluk','ozSure','kopyaMetni','kopyaBtn'].forEach((k) => { el[k] = $(k); });
 for (let i = 0; i < AYAR.carpanSerisi; i++) el.pipler.appendChild(document.createElement('i'));
 
 function ekranGoster(ad) {
-  ['giris', 'oyun', 'bitis'].forEach((k) => { el[k].hidden = k !== ad; });
+  ['giris', 'oyun', 'bitis', 'siralama'].forEach((k) => { el[k].hidden = k !== ad; });
 }
 function animasyon(oge, sinif) {
   oge.classList.remove(sinif);
@@ -386,6 +418,99 @@ function girisGuncelle() {
 function sesEtiketi() {
   el.sesBtn.textContent = sesKapali ? 'Ses kapalı' : 'Ses açık';
   el.sesBtn.setAttribute('aria-pressed', String(sesKapali));
+}
+
+/* ---------- Sıralama: sunucuya ulaşılamazsa oyun normal şekilde sürer ---------- */
+let geriEkrani = 'giris';
+let siraIstegi = 0;
+
+function istek(yol, ayarlar) {
+  return fetch(API + yol, Object.assign({ cache: 'no-store' }, ayarlar)).then((y) => {
+    if (!y.ok) throw new Error(String(y.status));
+    return y.json();
+  });
+}
+function siraSatiri(sira, ad, altAd, skor, sen) {
+  const li = document.createElement('li');
+  li.classList.toggle('sen', sen);
+  const no = document.createElement('span');
+  no.className = 'no';
+  no.textContent = sira;
+  const isim = document.createElement('span');
+  isim.className = 'ad';
+  isim.textContent = ad;
+  if (altAd) {
+    const alt = document.createElement('small');
+    alt.textContent = altAd;
+    isim.appendChild(alt);
+  }
+  const puan = document.createElement('span');
+  puan.className = 'puan';
+  puan.textContent = skor;
+  li.append(no, isim, puan);
+  return li;
+}
+function siralamaCiz(veri) {
+  el.liste.textContent = '';
+  veri.ilkOn.forEach((s) => {
+    el.liste.appendChild(siraSatiri(s.sira, s.sen ? 'Sen' : s.isim, s.sen ? s.isim : '', s.skor, s.sen));
+  });
+  const ben = veri.ben;
+  if (ben.sira && ben.sira > 10) {
+    const ara = document.createElement('li');
+    ara.className = 'ara';
+    ara.textContent = '···';
+    el.liste.appendChild(ara);
+    el.liste.appendChild(siraSatiri(ben.sira, 'Sen', ben.isim, ben.skor, true));
+  }
+  if (!veri.ilkOn.length) el.siraNot.textContent = 'Henüz skor yok. İlk sırayı sen al.';
+  else if (!ben.sira) el.siraNot.textContent = 'Henüz sıralamada değilsin. Bir tur oyna, listeye gir.';
+  else el.siraNot.textContent = '';
+}
+function siralamaAc() {
+  geriEkrani = el.bitis.hidden ? 'giris' : 'bitis';
+  ekranGoster('siralama');
+  siralamaYukle();
+}
+function siralamaYukle() {
+  const no = ++siraIstegi;
+  el.liste.textContent = '';
+  el.siraNot.textContent = 'Sıralama yükleniyor...';
+  el.siraYenileBtn.hidden = true;
+  skorGonderBekleyen().then(() => istek('/siralama')).then((veri) => {
+    if (no === siraIstegi) siralamaCiz(veri);
+  }).catch(() => {
+    if (no !== siraIstegi) return;
+    el.siraNot.textContent = 'Sıralamaya bağlanılamadı. Bağlantını kontrol edip tekrar dene.';
+    el.siraYenileBtn.hidden = false;
+  });
+}
+function skorPostala(kayit) {
+  return istek('/skor', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(kayit) });
+}
+// Bağlantı koparsa tur sonucu saklanır ve sonraki fırsatta gönderilir.
+function bekleyenAl() {
+  try { return JSON.parse(depo.al('celiski.bekleyen')) || null; } catch (e) { return null; }
+}
+function skorGonderBekleyen() {
+  const kayit = bekleyenAl();
+  if (!kayit) return Promise.resolve();
+  return skorPostala(kayit).then(() => depo.yaz('celiski.bekleyen', ''), (h) => {
+    if (h.message === '422') depo.yaz('celiski.bekleyen', '');
+  });
+}
+function turuGonder(tur) {
+  if (!tur.dogru) { el.siraDurum.textContent = ''; return; }
+  const kayit = { skor: tur.skor, dogru: tur.dogru, sureMs: Math.round(tur.tepkiler.reduce((a, b) => a + b, 0)) };
+  el.siraDurum.textContent = 'Sıralamaya kaydediliyor...';
+  skorPostala(kayit).then((veri) => {
+    if (d !== tur) return;
+    el.siraDurum.textContent = veri.ben.sira ? 'Sıralamada ' + veri.ben.sira + '. sıradasın' : '';
+  }).catch(() => {
+    const onceki = bekleyenAl();
+    if (!onceki || kayit.skor > onceki.skor) depo.yaz('celiski.bekleyen', JSON.stringify(kayit));
+    if (d === tur) el.siraDurum.textContent = 'Sıralamaya kaydedilemedi, sonra tekrar denenecek.';
+  });
 }
 
 /* ---------- Oyun akışı ---------- */
@@ -414,7 +539,7 @@ function turBaslat(mod) {
   el.oyunRekor.textContent = rekorAl(mod);
   el.skor.textContent = '0';
   el.kopyaMetni.hidden = true;
-  el.kopyaBtn.textContent = 'Skoru kopyala';
+  el.kopyaBtn.textContent = 'Kopyala';
   hudGuncelle();
   ekranGoster('oyun');
   soruyaGec(true);
@@ -540,6 +665,7 @@ function bitir(sebep) {
   el.ozSure.textContent = ort === null ? '—' : ort + ' ms';
   d.paylasim = 'Çelişki' + (d.mod === 'gunluk' ? ' · Günlük ' + bugunAnahtari() : '') + '\n' +
     d.skor + ' puan · en uzun seri ' + d.enUzun + ' · %' + dogruluk + ' doğruluk' + (ort === null ? '' : ' · ort. ' + ort + ' ms');
+  turuGonder(d);
   setTimeout(() => { if (d && d.durum === 'bitti') ekranGoster('bitis'); }, 260);
 }
 
@@ -569,7 +695,7 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'ArrowRight') { sesiHazirla(); cevapla(true); }
   if (e.key === 'ArrowLeft') { sesiHazirla(); cevapla(false); }
 });
-document.addEventListener('touchmove', (e) => { if (!e.target.closest('#kopyaMetni')) e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', (e) => { if (!e.target.closest('#kopyaMetni, #liste')) e.preventDefault(); }, { passive: false });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) { gizlenme = performance.now(); return; }
   if (d && d.durum === 'soru' && gizlenme) d.soruBasi += performance.now() - gizlenme;
@@ -584,6 +710,10 @@ $('tekrarBtn').addEventListener('click', () => {
   sesiHazirla();
   turBaslat(d.mod);
 });
+$('siralamaBtn').addEventListener('click', siralamaAc);
+$('bitisSiraBtn').addEventListener('click', siralamaAc);
+el.siraYenileBtn.addEventListener('click', siralamaYukle);
+$('geriBtn').addEventListener('click', () => { girisGuncelle(); ekranGoster(geriEkrani); });
 $('anaBtn').addEventListener('click', () => { d = null; girisGuncelle(); ekranGoster('giris'); });
 el.sesBtn.addEventListener('click', () => {
   sesKapali = !sesKapali;
@@ -607,4 +737,5 @@ el.kopyaBtn.addEventListener('click', () => {
 
 sesEtiketi();
 girisGuncelle();
+skorGonderBekleyen();
 </script>
