@@ -547,7 +547,9 @@ function bitir(sebep) {
 let basis = null;
 el.oyun.addEventListener('pointerdown', (e) => {
   sesiHazirla();
-  if (e.target.closest('button')) return;
+  // Soru ekrandayken başlamayan dokunuş cevap sayılmaz: kural ekranı veya geçiş
+  // sırasında basılan parmak, oyuncunun henüz görmediği soruyu cevaplamamalı.
+  if (e.target.closest('button') || !d || d.durum !== 'soru') { basis = null; return; }
   basis = { id: e.pointerId, x: e.clientX };
 });
 el.oyun.addEventListener('pointermove', (e) => {
