@@ -269,7 +269,7 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
   <h2>İLK 10</h2>
   <ol id="liste"></ol>
   <p id="siraNot"></p>
-  <p class="gizlilik">İsimler IP adresinden otomatik üretilir. IP adresin saklanmaz, yalnızca ondan türetilen geri çevrilemez bir kod tutulur.</p>
+  <p class="gizlilik">İsmin bu cihaza bağlıdır, tarayıcı verini silersen yeni isim alırsın. Cihaz kodun ve IP adresin sunucuda saklanmaz, yalnızca onlardan türetilen geri çevrilemez kodlar tutulur.</p>
   <button id="siraYenileBtn" class="dugme ikincil" type="button" hidden>Tekrar dene</button>
   <button id="geriBtn" class="dugme" type="button">GERİ</button>
 </section>
@@ -424,8 +424,24 @@ function sesEtiketi() {
 let geriEkrani = 'giris';
 let siraIstegi = 0;
 
+// Kalıcı kayıt yoksa kod gönderilmez ve sunucu IP adresine göre tanır.
+function cihazKodu() {
+  try {
+    let kod = localStorage.getItem('celiski.cihaz');
+    if (!/^[0-9a-f]{32}$/.test(kod || '')) {
+      kod = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem('celiski.cihaz', kod);
+    }
+    return localStorage.getItem('celiski.cihaz') === kod ? kod : null;
+  } catch (e) {
+    return null;
+  }
+}
 function istek(yol, ayarlar) {
-  return fetch(API + yol, Object.assign({ cache: 'no-store' }, ayarlar)).then((y) => {
+  const secenek = Object.assign({ cache: 'no-store' }, ayarlar);
+  const kod = cihazKodu();
+  if (kod) secenek.headers = Object.assign({ 'X-Cihaz': kod }, secenek.headers);
+  return fetch(API + yol, secenek).then((y) => {
     if (!y.ok) throw new Error(String(y.status));
     return y.json();
   });

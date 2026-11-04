@@ -1,6 +1,7 @@
 // Çelişki sıralama sunucusu.
-// IP adresinden kalıcı bir meyve ismi türetir ve en iyi skorları sıralar.
-// Ham IP adresi veritabanına yazılmaz ve hiçbir yanıtta dönmez.
+// Oyuncuya cihaz kodundan, kod yoksa IP adresinden kalıcı bir meyve ismi verir
+// ve en iyi skorları sıralar. Ham IP ve cihaz kodu veritabanına yazılmaz,
+// hiçbir yanıtta dönmez. İsim yalnızca ilk skor kaydedilince üretilir.
 
 const SIFATLAR = [
   'Çevik', 'Cesur', 'Hızlı', 'Keskin', 'Neşeli', 'Sakin', 'Zeki', 'Kurnaz', 'Usta', 'Parlak',
@@ -20,6 +21,7 @@ const TEMEL_PUAN = 10;
 const CARPAN_SERISI = 5;
 const EN_YUKSEK_CARPAN = 5;
 
+const ISIM_DENEMESI = 40;
 const EN_COK_DOGRU = 5000;
 const EN_KISA_CEVAP_MS = 120;
 const GONDERIM_ARALIGI_MS = 1500;
@@ -52,28 +54,52 @@ function ipAnahtari(ip) {
   return parcalar.slice(0, 4).map((p) => parseInt(p || '0', 16).toString(16)).join(':');
 }
 
-async function kimlikUret(ip, tuz) {
+async function kimlikUret(deger, tuz) {
   const anahtar = await crypto.subtle.importKey(
     'raw', new TextEncoder().encode(tuz), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
   );
-  const imza = await crypto.subtle.sign('HMAC', anahtar, new TextEncoder().encode(ipAnahtari(ip)));
+  const imza = await crypto.subtle.sign('HMAC', anahtar, new TextEncoder().encode(deger));
   return [...new Uint8Array(imza)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-async function oyuncuBul(env, ip) {
-  const kimlik = await kimlikUret(ip, env.IP_TUZ);
-  const secim = env.DB.prepare('SELECT kimlik, isim, rekor, rekor_tarih, son_gonderim FROM oyuncular WHERE kimlik = ?').bind(kimlik);
-  const kayitli = await secim.first();
-  if (kayitli) return kayitli;
+function oyuncuOku(env, kimlik) {
+  return env.DB.prepare('SELECT kimlik, isim, rekor, rekor_tarih, son_gonderim FROM oyuncular WHERE kimlik = ?').bind(kimlik).first();
+}
 
+async function oyuncuOlustur(env, kimlik, cihazBagli) {
   const baslangic = parseInt(kimlik.slice(0, 8), 16);
-  for (let adim = 0; adim < ISIM_SAYISI; adim++) {
-    await env.DB.prepare('INSERT OR IGNORE INTO oyuncular (kimlik, isim) VALUES (?, ?)')
-      .bind(kimlik, isimUret(baslangic + adim)).run();
-    const yeni = await secim.first();
+  for (let adim = 0; adim < ISIM_DENEMESI; adim++) {
+    const sira = baslangic + adim;
+    // İsimler dolmaya yakınsa çakışmalar uzamasın diye sayı eklenir.
+    const isim = adim < ISIM_DENEMESI / 2 ? isimUret(sira) : isimUret(sira) + ' ' + (1000 + sira % 9000);
+    await env.DB.prepare('INSERT OR IGNORE INTO oyuncular (kimlik, isim, cihaz_bagli) VALUES (?, ?, ?)')
+      .bind(kimlik, isim, cihazBagli).run();
+    const yeni = await oyuncuOku(env, kimlik);
     if (yeni) return yeni;
   }
-  throw new Error('Boş isim kalmadı');
+  throw new Error('Boş isim bulunamadı');
+}
+
+async function oyuncuBul(env, ip, cihaz, olustur) {
+  const ipKimlik = await kimlikUret(ipAnahtari(ip), env.IP_TUZ);
+  if (!cihaz) {
+    const kayit = await oyuncuOku(env, ipKimlik);
+    return kayit || (olustur ? oyuncuOlustur(env, ipKimlik, 0) : null);
+  }
+  const cihazKimlik = await kimlikUret('cihaz:' + cihaz, env.IP_TUZ);
+  const kayit = await oyuncuOku(env, cihazKimlik);
+  if (kayit) return kayit;
+
+  // Daha önce yalnızca IP ile oluşmuş kayıt, o IP'den gelen ilk cihaza geçer.
+  const aktarim = await env.DB.prepare('UPDATE oyuncular SET kimlik = ?1, cihaz_bagli = 1 WHERE kimlik = ?2 AND cihaz_bagli = 0')
+    .bind(cihazKimlik, ipKimlik).run();
+  if (aktarim.meta.changes) return oyuncuOku(env, cihazKimlik);
+  return olustur ? oyuncuOlustur(env, cihazKimlik, 1) : null;
+}
+
+function cihazKodu(istek) {
+  const kod = istek.headers.get('X-Cihaz');
+  return kod && /^[0-9a-f]{32}$/.test(kod) ? kod : null;
 }
 
 async function tablo(env, oyuncu) {
@@ -101,11 +127,18 @@ function skorGecerli(girdi) {
     && sureMs >= dogru * EN_KISA_CEVAP_MS;
 }
 
-async function skorKaydet(istek, env, oyuncu) {
+async function skorIstegi(istek, env, ip, cihaz, koken) {
+  const sonuc = await skorKaydet(istek, env, ip, cihaz);
+  return yanit(sonuc.durum, sonuc.govde, koken);
+}
+
+async function skorKaydet(istek, env, ip, cihaz) {
   let girdi;
   try { girdi = await istek.json(); } catch (e) { return { durum: 400, govde: { hata: 'gecersiz' } }; }
   if (!skorGecerli(girdi)) return { durum: 422, govde: { hata: 'gecersiz' } };
 
+  // Geçersiz isteklerin veritabanında isim harcamaması için oyuncu burada oluşturulur.
+  const oyuncu = await oyuncuBul(env, ip, cihaz, true);
   const simdi = Date.now();
   if (simdi - oyuncu.son_gonderim < GONDERIM_ARALIGI_MS) return { durum: 429, govde: { hata: 'cok-hizli' } };
 
@@ -138,7 +171,7 @@ export default {
         headers: {
           ...(koken ? { 'Access-Control-Allow-Origin': koken } : {}),
           'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Headers': 'Content-Type, X-Cihaz',
           'Access-Control-Max-Age': '86400',
           Vary: 'Origin'
         }
@@ -149,13 +182,14 @@ export default {
     const ip = istek.headers.get('CF-Connecting-IP');
     if (!ip) return yanit(400, { hata: 'ip-yok' }, koken);
 
+    const cihaz = cihazKodu(istek);
     try {
       if (istek.method === 'GET' && yol === '/siralama') {
-        return yanit(200, await tablo(env, await oyuncuBul(env, ip)), koken);
+        const oyuncu = await oyuncuBul(env, ip, cihaz, false);
+        return yanit(200, await tablo(env, oyuncu || { kimlik: null, isim: null, rekor: 0 }), koken);
       }
       if (istek.method === 'POST' && yol === '/skor') {
-        const sonuc = await skorKaydet(istek, env, await oyuncuBul(env, ip));
-        return yanit(sonuc.durum, sonuc.govde, koken);
+        return skorIstegi(istek, env, ip, cihaz, koken);
       }
       return yanit(404, { hata: 'bulunamadi' }, koken);
     } catch (hata) {
