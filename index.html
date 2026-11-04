@@ -141,6 +141,9 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
 #perdeEtiket { color: var(--soluk); font-weight: 700; letter-spacing: .1em; }
 #perde .kural { width: 100%; font-size: min(15vw, 72px); }
 #perde .kural.gel { animation: gel .14s ease-out; }
+#perdeAciklama { margin: 0; text-align: center; font-size: 1.25rem; font-weight: 600; line-height: 1.25; }
+#baslaBtn { margin-top: 12px; }
+#baslaBtn:disabled { opacity: .35; cursor: default; }
 
 #oyun.sars { animation: sars .24s linear; }
 #flas { position: fixed; inset: 0; background: var(--kirmizi); opacity: 0; pointer-events: none; }
@@ -238,6 +241,8 @@ button:focus-visible { outline: 3px solid var(--metin); outline-offset: 2px; }
   <div id="perde" hidden>
     <div id="perdeEtiket">KURAL DEĞİŞTİ</div>
     <div id="perdeKural" class="kural renk">RENGE BAK</div>
+    <p id="perdeAciklama" hidden></p>
+    <button id="baslaBtn" class="dugme" type="button" hidden>BAŞLA</button>
   </div>
 </section>
 
@@ -287,7 +292,7 @@ const AYAR = {
   kuralEnAz: 6,         // bir kural en az kaç soru sürer
   kuralEnCok: 9,        // bir kural en çok kaç soru sürer
   ilkPerde: 600,        // tur başında kural ekranı (ms)
-  kuralPerde: 800,      // kural değişiminde bekleme (ms)
+  baslaKilidi: 500,     // kural ekranında BAŞLA düğmesi bu süreden sonra açılır (ms)
   celiskiOrani: 0.85,   // yazı ile rengin farklı olma olasılığı
   tuzakOrani: 0.6,      // yanlış kutunun tuzak renk seçilme olasılığı
   eslesmeOrani: 0.5,    // doğru cevabın "eşleşiyor" olma olasılığı
@@ -304,6 +309,10 @@ const API = 'https://celiski-api.muratsavci-com.workers.dev';
 const RENKLER = ['kirmizi', 'mavi', 'yesil', 'sari'];
 const ADLAR = { kirmizi: 'KIRMIZI', mavi: 'MAVİ', yesil: 'YEŞİL', sari: 'SARI' };
 const KURALLAR = { renk: 'RENGE BAK', yazi: 'YAZIYA BAK' };
+const KURAL_ACIKLAMASI = {
+  renk: 'Yazının rengini kutuyla karşılaştır.',
+  yazi: 'Kelimenin ne yazdığını kutuyla karşılaştır.'
+};
 const NOTALAR = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
 
 /* ---------- Rastgelelik ve soru üretimi ---------- */
@@ -398,7 +407,7 @@ function titret(desen) {
 /* ---------- Ekran öğeleri ---------- */
 const $ = (id) => document.getElementById(id);
 const el = {};
-['giris','oyun','bitis','siralama','liste','siraNot','siraDurum','siraYenileBtn','skor','carpan','pipler','sureCubuk','kural','kelime','kutu','solYon','sagYon','perde','perdeEtiket','perdeKural','flas','oyunRekor','sesBtn','sebep','sonSkor','rekorDurum','tekrarSoru','ozSeri','ozDogruluk','ozSure','kopyaMetni','kopyaBtn'].forEach((k) => { el[k] = $(k); });
+['giris','oyun','bitis','siralama','liste','siraNot','siraDurum','siraYenileBtn','skor','carpan','pipler','sureCubuk','kural','kelime','kutu','solYon','sagYon','perde','perdeEtiket','perdeKural','perdeAciklama','baslaBtn','flas','oyunRekor','sesBtn','sebep','sonSkor','rekorDurum','tekrarSoru','ozSeri','ozDogruluk','ozSure','kopyaMetni','kopyaBtn'].forEach((k) => { el[k] = $(k); });
 for (let i = 0; i < AYAR.carpanSerisi; i++) el.pipler.appendChild(document.createElement('i'));
 
 function ekranGoster(ad) {
@@ -581,11 +590,22 @@ function soruyaGec(ilkSoru) {
     d.durum = 'perde';
     el.perdeEtiket.textContent = ilkSoru ? 'KURAL' : 'KURAL DEĞİŞTİ';
     kuralYaz(el.perdeKural, soru.kural);
+    el.perdeAciklama.textContent = KURAL_ACIKLAMASI[soru.kural];
+    el.perdeAciklama.hidden = ilkSoru;
+    el.baslaBtn.hidden = ilkSoru;
+    el.baslaBtn.disabled = true;
     el.perde.hidden = false;
     animasyon(el.perdeKural, 'gel');
     el.sureCubuk.style.transform = 'scaleX(1)';
-    if (!ilkSoru) { ton(392, .1, 'square', .08); ton(587.33, .14, 'square', .08, .1); titret(25); }
-    zamanla(soruGoster, ilkSoru ? AYAR.ilkPerde : AYAR.kuralPerde);
+    if (ilkSoru) {
+      zamanla(soruGoster, AYAR.ilkPerde);
+    } else {
+      // Süre durur; oyuncu kuralı okuyup BAŞLA'ya basınca oyun sürer.
+      ton(392, .1, 'square', .08);
+      ton(587.33, .14, 'square', .08, .1);
+      titret(25);
+      zamanla(() => { el.baslaBtn.disabled = false; }, AYAR.baslaKilidi);
+    }
   } else {
     soruGoster();
   }
@@ -706,8 +726,15 @@ el.oyun.addEventListener('pointerup', (e) => {
   cevapla(e.clientX >= kutu.left + kutu.width / 2);
 });
 el.oyun.addEventListener('pointercancel', () => { basis = null; });
+function kuralEkraniniGec() {
+  if (!d || d.durum !== 'perde' || el.baslaBtn.hidden || el.baslaBtn.disabled) return;
+  sesiHazirla();
+  soruGoster();
+}
+el.baslaBtn.addEventListener('click', kuralEkraniniGec);
 document.addEventListener('keydown', (e) => {
   if (e.repeat) return;
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); kuralEkraniniGec(); }
   if (e.key === 'ArrowRight') { sesiHazirla(); cevapla(true); }
   if (e.key === 'ArrowLeft') { sesiHazirla(); cevapla(false); }
 });
